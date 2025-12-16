@@ -1,0 +1,22 @@
+{
+  "sistema": "Detección de Vulnerabilidades con ML",
+  "especificaciones_cumplidas": [
+    "Pipeline de extracción de características",
+    "Análisis de patrones de riesgo",
+    "Alertas automáticas (>70% probabilidad)",
+    "Integración GitHub Actions",
+    "Reportes con interpretabilidad"
+  ],
+  "mejoras_implementadas": [
+    "Características avanzadas (12 features)",
+    "Sistema de alertas por probabilidades",
+    "Pipeline CI/CD completo",
+    "Reportes HTML detallados",
+    "Análisis de diferencias Git"
+  ],
+  "archivos_pipeline": [
+    ".github/workflows/vulnerability-detection.yml",
+    "scripts/generate_basic_report.py",
+    "scripts/extract_features_from_diff.py"
+  ]
+}

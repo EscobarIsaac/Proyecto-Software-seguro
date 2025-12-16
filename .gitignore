@@ -1,0 +1,130 @@
+# Archivos compilados C++
+*.o
+*.obj
+*.so
+*.dylib
+*.a
+*.lib
+
+# Archivos de compilación específicos del proyecto
+Makefile.win
+main.o
+
+# Archivos de IDEs y editores
+*.dev
+*.layout
+*.depend
+*.cbp
+*.ncb
+*.suo
+*.user
+*.sdf
+*.opensdf
+*.vcxproj.user
+.vs/
+.vscode/
+
+# Archivos del sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Entornos virtuales Python
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Archivos de configuración local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Archivos de modelos entrenados (opcional - descomenta si no quieres versionar)
+# rf_vuln_model.bin
+# *.bin
+# *.pkl
+# *.joblib
+
+# Archivos de datos grandes (opcional - descomenta si son muy grandes)
+# *.csv
+# all_c_cpp_release2.0.csv
+
+# Reportes generados (se pueden regenerar)
+reports/
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# Archivos de cache
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Archivos de documentación generados
+docs/_build/
+
+# Archivos de dependencias Node.js (si usas Node)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de Maven (si usas Java)
+target/
+
+# Archivos de Gradle (si usas Java)
+.gradle/
+build/
