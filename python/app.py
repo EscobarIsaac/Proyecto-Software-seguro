@@ -10,45 +10,50 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import os
 import logging
+from pathlib import Path
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 # Variable global para el modelo
 model = None
+BASE_DIR = Path(__file__).resolve().parent
+CSV_DIR = Path(os.environ.get('CSV_DIR', BASE_DIR.parent / 'csvs'))
 feature_names = [
     "length", "num_lines", "num_semi", "num_if", "num_for", "num_while",
     "num_equal", "sql_risk", "xss_risk", "concat_risk", "dangerous_count",
     "injection_risk", "score"
 ]
 
+
 def load_model():
     """Carga y entrena el modelo al iniciar la aplicación"""
     global model
     try:
-        if os.path.exists("train_features.csv"):
-            train_df = pd.read_csv("train_features.csv", header=None)
+        train_path = CSV_DIR / "train_features.csv"
+        if train_path.exists():
+            train_df = pd.read_csv(train_path, header=None)
             X = train_df.iloc[:, :-1]
             y = train_df.iloc[:, -1]
-            
-            model = RandomForestClassifier(
-                n_estimators=50,
-                min_samples_leaf=5,
-                random_state=42
-            )
+
+            model = RandomForestClassifier(n_estimators=50,
+                                           min_samples_leaf=5,
+                                           random_state=42)
             model.fit(X, y)
             logging.info("✅ Modelo cargado y entrenado exitosamente")
         else:
-            logging.warning("⚠️ No se encontró train_features.csv, usando modelo mock")
+            logging.warning(
+                "⚠️ No se encontró train_features.csv, usando modelo mock")
             model = None
     except Exception as e:
         logging.error(f"❌ Error cargando modelo: {e}")
         model = None
 
+
 def extract_features(code_snippet):
     """Extrae características de un snippet de código"""
     text = str(code_snippet).lower()
-    
+
     # Características básicas
     length = len(text)
     num_lines = text.count("\n") + 1
@@ -57,32 +62,40 @@ def extract_features(code_snippet):
     num_for = text.count("for")
     num_while = text.count("while")
     num_equal = text.count("=")
-    
+
     # Patrones de riesgo SQL
-    sql_patterns = ["select", "insert", "update", "delete", "union", "drop", "alter"]
+    sql_patterns = [
+        "select", "insert", "update", "delete", "union", "drop", "alter"
+    ]
     sql_risk = sum([text.count(pattern) for pattern in sql_patterns])
-    
+
     # Patrones XSS
-    xss_patterns = ["alert", "document", "innerhtml", "script", "eval", "settimeout"]
+    xss_patterns = [
+        "alert", "document", "innerhtml", "script", "eval", "settimeout"
+    ]
     xss_risk = sum([text.count(pattern) for pattern in xss_patterns])
-    
+
     # Concatenación insegura
-    concat_risk = text.count("' +") + text.count('" +') + text.count("+ '") + text.count('+ "')
-    
+    concat_risk = text.count("' +") + text.count('" +') + text.count(
+        "+ '") + text.count('+ "')
+
     # Funciones peligrosas
     dangerous_funcs = ["gets", "strcpy", "sprintf", "strcat", "system", "exec"]
     dangerous_count = sum([text.count(func) for func in dangerous_funcs])
-    
+
     # Patrones de inyección
     injection_patterns = ["where", "from", "into", "values"]
-    injection_risk = sum([text.count(pattern) for pattern in injection_patterns])
-    
+    injection_risk = sum(
+        [text.count(pattern) for pattern in injection_patterns])
+
     # Score promedio
     score = 5.52572202166065
-    
-    return [length, num_lines, num_semi, num_if, num_for, num_while, 
-            num_equal, sql_risk, xss_risk, concat_risk, dangerous_count, 
-            injection_risk, score]
+
+    return [
+        length, num_lines, num_semi, num_if, num_for, num_while, num_equal,
+        sql_risk, xss_risk, concat_risk, dangerous_count, injection_risk, score
+    ]
+
 
 @app.route('/')
 def home():
@@ -300,6 +313,7 @@ def home():
     """
     return render_template_string(html)
 
+
 @app.route('/health', methods=['GET'])
 def health():
     """Endpoint de salud para monitoreo"""
@@ -310,23 +324,23 @@ def health():
         "version": "1.0.0"
     })
 
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """Endpoint principal para análisis de código"""
     try:
         data = request.get_json()
-        
+
         if not data or 'code' not in data:
-            return jsonify({
-                "error": "Se requiere el campo 'code' en el JSON"
-            }), 400
-        
+            return jsonify({"error":
+                            "Se requiere el campo 'code' en el JSON"}), 400
+
         code = data['code']
-        
+
         # Extraer características
         features = extract_features(code)
         X = np.array([features])
-        
+
         # Predicción
         if model is not None:
             prediction = model.predict(X)[0]
@@ -335,10 +349,12 @@ def analyze():
             prob_vulnerable = float(probabilities[1])
         else:
             # Modo mock si no hay modelo
-            prediction = 1 if any(p in code.lower() for p in ['select', 'insert', 'eval', 'exec']) else 0
+            prediction = 1 if any(
+                p in code.lower()
+                for p in ['select', 'insert', 'eval', 'exec']) else 0
             prob_vulnerable = 0.85 if prediction == 1 else 0.15
             prob_safe = 1 - prob_vulnerable
-        
+
         # Determinar nivel de alerta
         if prob_vulnerable > 0.70:
             alert_level = "CRITICA"
@@ -349,20 +365,22 @@ def analyze():
         else:
             alert_level = "BAJA"
             message = "Código seguro. Baja probabilidad de vulnerabilidad."
-        
+
         # Detectar patrones específicos
         patterns_detected = []
         code_lower = code.lower()
-        
-        if any(p in code_lower for p in ['select', 'insert', 'update', 'delete']):
+
+        if any(p in code_lower
+               for p in ['select', 'insert', 'update', 'delete']):
             patterns_detected.append("Patrones SQL detectados")
-        if any(p in code_lower for p in ['alert', 'document', 'innerhtml', 'eval']):
+        if any(p in code_lower
+               for p in ['alert', 'document', 'innerhtml', 'eval']):
             patterns_detected.append("Patrones XSS detectados")
         if "' +" in code or '" +' in code:
             patterns_detected.append("Concatenación insegura de strings")
         if any(f in code_lower for f in ['gets', 'strcpy', 'system', 'exec']):
             patterns_detected.append("Funciones peligrosas/deprecated")
-        
+
         return jsonify({
             "prediction": int(prediction),
             "prob_vulnerable": prob_vulnerable,
@@ -372,10 +390,11 @@ def analyze():
             "patterns_detected": patterns_detected,
             "features": dict(zip(feature_names, features))
         })
-    
+
     except Exception as e:
         logging.error(f"Error en /analyze: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/stats', methods=['GET'])
 def stats():
@@ -394,6 +413,7 @@ def stats():
             "trained": False,
             "message": "Modelo en modo demo"
         })
+
 
 # Cargar modelo al iniciar
 load_model()

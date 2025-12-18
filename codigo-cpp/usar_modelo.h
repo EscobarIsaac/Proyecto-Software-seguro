@@ -1,7 +1,6 @@
 #ifndef USAR_MODELO_H
 #define USAR_MODELO_H
 
-
 using namespace mlpack;
 using namespace arma;
 
@@ -9,11 +8,11 @@ void usar_modelo_mineriadatos()
 {
     // 1. Cargar el modelo entrenado
     mlpack::RandomForest<> rf;
-    data::Load("rf_vuln_model.bin", "rf_model", rf);
+    data::Load("../modelo/rf_vuln_model.bin", "rf_model", rf);
 
     // 2. Cargar las características del ejemplo (una fila, mismas columnas que train_features sin label)
     arma::mat exampleData;
-    if (!data::Load("example_features.csv", exampleData, true)) // true = transposeIn
+    if (!data::Load("../csvs/example_features.csv", exampleData, true)) // true = transposeIn
     {
         std::cerr << "No se pudo cargar example_features.csv\n";
         return;

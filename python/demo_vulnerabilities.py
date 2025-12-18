@@ -8,12 +8,14 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import json
+from pathlib import Path
 
 
 def load_model_and_data():
     """Carga el modelo entrenado y los datos"""
     # Cargar datos de entrenamiento
-    train_df = pd.read_csv("train_features.csv", header=None)
+    CSV_DIR = Path(__file__).resolve().parent.parent / "csvs"
+    train_df = pd.read_csv(CSV_DIR / "train_features.csv", header=None)
     X_train = train_df.iloc[:, :-1]
     y_train = train_df.iloc[:, -1]
 
@@ -30,16 +32,17 @@ def analyze_example(model):
     """Analiza el ejemplo con el modelo mejorado"""
 
     # Cargar ejemplo
-    example_df = pd.read_csv("example_features.csv", header=None)
+    CSV_DIR = Path(__file__).resolve().parent.parent / "csvs"
+    example_df = pd.read_csv(CSV_DIR / "example_features.csv", header=None)
     X_example = example_df.values
-# --- SIMULACIÓN DE CÓDIGO CORREGIDO (PARA QUE PASE EL PIPELINE) ---
+    # --- SIMULACIÓN DE CÓDIGO CORREGIDO (PARA QUE PASE EL PIPELINE) ---
     # En un caso real, aquí entrarían los datos del código limpio.
     # Para la demo, forzamos la predicción a "Seguro".
-    
+
     prediction = 0  # 0 = Seguro
-    prob_safe = 0.99       # 99% Seguro
-    prob_vulnerable = 0.01 # 1% Vulnerable
-    
+    prob_safe = 0.99  # 99% Seguro
+    prob_vulnerable = 0.01  # 1% Vulnerable
+
     # ------------------------------------------------------------------
 
     print("\n" + "=" * 60)

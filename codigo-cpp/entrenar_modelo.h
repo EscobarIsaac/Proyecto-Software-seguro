@@ -12,7 +12,7 @@ void entrenar_modelo_mineriadatos()
 {
     // 1. Cargar CSV de entrenamiento (features + etiqueta al final)
     arma::mat data;
-    data::Load("train_features.csv", data, true); // true = transposeIn
+    data::Load("../csvs/train_features.csv", data, true); // true = transposeIn
 
     const size_t featureDim = data.n_rows - 1;
     arma::mat X = data.rows(0, featureDim - 1);
@@ -26,11 +26,12 @@ void entrenar_modelo_mineriadatos()
 
     mlpack::RandomForest<> rf(X, y, numClasses, numTrees, minLeafSize);
 
-    data::Save("rf_vuln_model.bin", "rf_model", rf, false);
+    // Guardar modelo en carpeta modelo/
+    data::Save("../modelo/rf_vuln_model.bin", "rf_model", rf, false);
 
     // 3. Cargar CSV de test
     arma::mat testDataFull;
-    data::Load("test_features.csv", testDataFull, true);
+    data::Load("../csvs/test_features.csv", testDataFull, true);
 
     arma::mat Xtest = testDataFull.rows(0, featureDim - 1);
     arma::Row<size_t> ytest =
@@ -40,7 +41,7 @@ void entrenar_modelo_mineriadatos()
     arma::Row<size_t> predictions;
     rf.Classify(Xtest, predictions);
 
-    predictions.save("predictions.csv", arma::csv_ascii);
+    predictions.save("../csvs/predictions.csv", arma::csv_ascii);
     
     std::cout << "Modelo entrenado exitosamente.\n";
 }

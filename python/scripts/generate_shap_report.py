@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Script simplificado para generar reportes de vulnerabilidades
+Script para generar reportes de interpretabilidad con SHAP
+Cumple con la especificación de reportes HTML con explicaciones
 """
 
 import pandas as pd
@@ -8,13 +9,17 @@ import numpy as np
 import json
 import os
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+import shap
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
 def load_and_train_model():
-    """Carga datos y entrena modelo de scikit-learn"""
+    """Carga datos y entrena modelo de scikit-learn para compatibilidad con SHAP"""
     # Cargar datos procesados
-    train_df = pd.read_csv("train_features.csv", header=None)
+    CSV_DIR = Path(__file__).resolve().parents[2] / "csvs"
+    train_df = pd.read_csv(CSV_DIR / "train_features.csv", header=None)
 
     # Separar features y labels
     X = train_df.iloc[:, :-1]  # Todas las columnas excepto la última
@@ -30,59 +35,74 @@ def load_and_train_model():
     feature_names = [
         "length", "num_lines", "num_semi", "num_if", "num_for", "num_while",
         "num_equal", "sql_risk", "xss_risk", "concat_risk", "dangerous_count",
-        "injection_risk", "score"
+        "injection_risk"
     ]
 
     return model, X, y, feature_names
 
 
-def generate_basic_report(model, X, y, feature_names):
-    """Genera reporte básico sin SHAP"""
+def generate_shap_report(model, X, feature_names):
+    """Genera reporte SHAP con explicaciones de interpretabilidad"""
+
+    # Crear explainer SHAP
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(
+        X[:100])  # Usar muestra para eficiencia
 
     # Crear directorio de reportes
     os.makedirs("reports", exist_ok=True)
 
-    # 1. Importancia de características del Random Forest
+    # 1. Summary Plot (importancia de características)
     plt.figure(figsize=(10, 6))
-    feature_importance = model.feature_importances_
-    indices = np.argsort(feature_importance)[::-1]
+    if len(shap_values) > 1:  # Clasificación binaria
+        shap.summary_plot(shap_values[1],
+                          X[:100],
+                          feature_names=feature_names,
+                          show=False)
+    else:
+        shap.summary_plot(shap_values,
+                          X[:100],
+                          feature_names=feature_names,
+                          show=False)
 
-    plt.barh(range(len(feature_names)), feature_importance[indices])
-    plt.yticks(range(len(feature_names)), [feature_names[i] for i in indices])
-    plt.xlabel('Importancia de características')
     plt.title(
-        'Importancia de Características para Detección de Vulnerabilidades')
+        "Importancia de Características para Detección de Vulnerabilidades")
     plt.tight_layout()
     plt.savefig("reports/feature_importance.png", dpi=300, bbox_inches='tight')
     plt.close()
 
-    # 2. Distribución de riesgo
-    predictions = model.predict(X)
-    probabilities = model.predict_proba(X)
+    # 2. Waterfall plot para ejemplo específico
+    plt.figure(figsize=(10, 8))
+    if len(shap_values) > 1:
+        shap_vals_sample = shap_values[1][0]  # Clase vulnerable
+    else:
+        shap_vals_sample = shap_values[0]
 
-    plt.figure(figsize=(10, 6))
-    plt.hist(probabilities[:, 1], bins=30, alpha=0.7, edgecolor='black')
-    plt.xlabel('Probabilidad de Vulnerabilidad')
-    plt.ylabel('Número de Muestras')
-    plt.title('Distribución de Probabilidades de Vulnerabilidad')
-    plt.axvline(x=0.7,
-                color='red',
-                linestyle='--',
-                label='Umbral Crítico (70%)')
-    plt.axvline(x=0.5,
-                color='orange',
-                linestyle='--',
-                label='Umbral Medio (50%)')
-    plt.legend()
+    # Crear objeto Explanation para waterfall
+    explanation = shap.Explanation(
+        values=shap_vals_sample,
+        base_values=explainer.expected_value[1]
+        if len(shap_values) > 1 else explainer.expected_value,
+        data=X.iloc[0].values,
+        feature_names=feature_names)
+
+    shap.plots.waterfall(explanation, show=False)
+    plt.title("Explicación de Predicción - Ejemplo Específico")
     plt.tight_layout()
-    plt.savefig("reports/risk_distribution.png", dpi=300, bbox_inches='tight')
+    plt.savefig("reports/example_explanation.png",
+                dpi=300,
+                bbox_inches='tight')
     plt.close()
 
-    return probabilities
+    return shap_values
 
 
-def create_html_report(model, X, y, feature_names, probabilities):
+def create_html_report(model, X, y, feature_names, shap_values):
     """Crea reporte HTML detallado"""
+
+    # Obtener predicciones y probabilidades
+    predictions = model.predict(X[:100])
+    probabilities = model.predict_proba(X[:100])
 
     # Calcular estadísticas
     accuracy = model.score(X, y)
@@ -100,22 +120,15 @@ def create_html_report(model, X, y, feature_names, probabilities):
         int(medium_risk_samples),
         "accuracy":
         float(accuracy),
-        "high_risk_files":
-        [{
+        "high_risk_files": [{
             "path": f"sample_{i}",
             "probability": float(probabilities[i, 1])
         } for i in range(min(100, len(probabilities)))
-         if probabilities[i, 1] > 0.7][:10]  # Limitar a 10 para el reporte
+                            if probabilities[i, 1] > 0.7]
     }
 
     with open("reports/vulnerability_summary.json", "w") as f:
         json.dump(report_summary, f, indent=2)
-
-    # Características más importantes
-    feature_importance = model.feature_importances_
-    top_features = sorted(zip(feature_names, feature_importance),
-                          key=lambda x: x[1],
-                          reverse=True)[:5]
 
     # Crear reporte HTML
     html_content = f"""
@@ -131,8 +144,6 @@ def create_html_report(model, X, y, feature_names, probabilities):
             .warning {{ background-color: #f39c12; color: white; padding: 15px; margin: 10px 0; border-radius: 5px; }}
             .success {{ background-color: #27ae60; color: white; padding: 15px; margin: 10px 0; border-radius: 5px; }}
             img {{ max-width: 100%; height: auto; margin: 20px 0; }}
-            .feature-list {{ list-style-type: none; padding: 0; }}
-            .feature-item {{ background: #f8f9fa; margin: 5px 0; padding: 10px; border-left: 4px solid #3498db; }}
         </style>
     </head>
     <body>
@@ -157,50 +168,30 @@ def create_html_report(model, X, y, feature_names, probabilities):
         <div class="metric">
             <h2>🎯 Características más Importantes</h2>
             <img src="feature_importance.png" alt="Importancia de Características">
-            <p>Top 5 características para detección de vulnerabilidades:</p>
-            <ul class="feature-list">
-                {"".join([f'<li class="feature-item"><strong>{name}:</strong> {importance:.3f}</li>' for name, importance in top_features])}
-            </ul>
+            <p>Este gráfico muestra qué características del código son más importantes para detectar vulnerabilidades.</p>
         </div>
         
         <div class="metric">
-            <h2>📈 Distribución de Riesgo</h2>
-            <img src="risk_distribution.png" alt="Distribución de Riesgo">
-            <p>Distribución de probabilidades de vulnerabilidad en el dataset de entrenamiento.</p>
+            <h2>🔍 Explicación de Predicción</h2>
+            <img src="example_explanation.png" alt="Explicación de Ejemplo">
+            <p>Explicación detallada de cómo el modelo toma decisiones para un ejemplo específico.</p>
         </div>
         
         <div class="metric">
-            <h2>🔍 Patrones Detectados</h2>
-            <p>El modelo analiza los siguientes patrones de riesgo:</p>
+            <h2>📈 Interpretabilidad del Modelo</h2>
+            <p>Este modelo utiliza <strong>SHAP (SHapley Additive exPlanations)</strong> para proporcionar explicaciones interpretables de sus predicciones:</p>
             <ul>
-                <li><strong>Patrones SQL:</strong> Detecta palabras clave relacionadas con inyección SQL (SELECT, INSERT, etc.)</li>
-                <li><strong>Patrones XSS:</strong> Identifica funciones JavaScript potencialmente peligrosas (alert, document, etc.)</li>
+                <li><strong>Patrones SQL:</strong> Detecta palabras clave relacionadas con inyección SQL</li>
+                <li><strong>Patrones XSS:</strong> Identifica funciones JavaScript potencialmente peligrosas</li>
                 <li><strong>Concatenación insegura:</strong> Encuentra patrones de concatenación de strings que pueden ser vulnerables</li>
                 <li><strong>Funciones peligrosas:</strong> Detecta uso de funciones deprecated o inseguras</li>
-                <li><strong>Patrones de inyección:</strong> Analiza estructuras típicas de ataques de inyección</li>
             </ul>
         </div>
         
         <div class="metric">
-            <h2>🔄 Cumplimiento de Especificaciones</h2>
-            <p><strong>✅ Pipeline de extracción de características:</strong> Implementado con análisis AST</p>
-            <p><strong>✅ Análisis de patrones de riesgo:</strong> Detección de funciones deprecated y patrones de inyección</p>
-            <p><strong>✅ Alertas automáticas:</strong> Alertas cuando probabilidad > 70%</p>
-            <p><strong>✅ Integración GitHub Actions:</strong> Pipeline CI/CD configurado</p>
-            <p><strong>✅ Reportes con interpretabilidad:</strong> Explicaciones detalladas con Random Forest</p>
-        </div>
-        
-        <div class="metric">
-            <h2>🚀 Integración Continua</h2>
+            <h2>🔄 Integración Continua</h2>
             <p>Este reporte es generado automáticamente en cada commit/pull request mediante GitHub Actions, 
                proporcionando análisis continuo de vulnerabilidades en el código.</p>
-            <p>El pipeline incluye:</p>
-            <ul>
-                <li>Extracción automática de características del código</li>
-                <li>Análisis de diferencias en commits</li>
-                <li>Generación de reportes HTML</li>
-                <li>Comentarios automáticos en Pull Requests</li>
-            </ul>
         </div>
     </body>
     </html>
@@ -219,16 +210,16 @@ def create_html_report(model, X, y, feature_names, probabilities):
 
 def main():
     """Función principal"""
-    print("🔍 Generando reporte de vulnerabilidades...")
+    print("🔍 Generando reporte de interpretabilidad con SHAP...")
 
     # Cargar modelo y datos
     model, X, y, feature_names = load_and_train_model()
 
-    # Generar gráficos básicos
-    probabilities = generate_basic_report(model, X, y, feature_names)
+    # Generar explicaciones SHAP
+    shap_values = generate_shap_report(model, X, feature_names)
 
     # Crear reporte HTML
-    create_html_report(model, X, y, feature_names, probabilities)
+    create_html_report(model, X, y, feature_names, shap_values)
 
     print("✅ Reporte completado exitosamente!")
 

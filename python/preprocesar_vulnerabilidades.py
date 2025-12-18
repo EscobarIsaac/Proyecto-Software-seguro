@@ -1,10 +1,12 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import numpy as np
+from pathlib import Path
 
-# 1. Cargar datasets
-code_df = pd.read_csv("code_vulnerabilities.csv")
-meta_df = pd.read_csv("all_c_cpp_release2.0.csv")
+# 1. Cargar datasets (desde carpeta csvs)
+CSV_DIR = Path(__file__).resolve().parent.parent / "csvs"
+code_df = pd.read_csv(CSV_DIR / "code_vulnerabilities.csv")
+meta_df = pd.read_csv(CSV_DIR / "all_c_cpp_release2.0.csv")
 
 # 2. Limpiar nombres de columnas esperados
 # Ajusta si tus columnas tienen nombres algo distintos
@@ -95,5 +97,5 @@ train_df, test_df = train_test_split(
 )
 
 # 8. Guardar en CSV sin cabecera (para que mlpack lea solo números)
-train_df.to_csv("train_features.csv", index=False, header=False)
-test_df.to_csv("test_features.csv", index=False, header=False)
+train_df.to_csv(CSV_DIR / "train_features.csv", index=False, header=False)
+test_df.to_csv(CSV_DIR / "test_features.csv", index=False, header=False)

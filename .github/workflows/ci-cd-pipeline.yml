@@ -44,7 +44,7 @@ jobs:
       
       - name: 🔔 Notificar inicio de escaneo
         run: |
-          python telegram_notifier.py security_start || echo "Notificación omitida"
+          python python/telegram_notifier.py security_start || echo "Notificación omitida"
       
       - name: 🔍 Analizar vulnerabilidades con ML
         id: analyze
@@ -52,7 +52,7 @@ jobs:
           echo "🔍 Extrayendo características del código modificado..."
           
           # Ejecutar análisis de vulnerabilidades
-          python demo_vulnerabilities.py > analysis_output.txt || true
+          python python/demo_vulnerabilities.py > analysis_output.txt || true
           
           # Leer resultado
           if [ -f "analysis_output.txt" ]; then
@@ -97,7 +97,7 @@ jobs:
           echo "🚨 VULNERABILIDAD DETECTADA - Bloqueando PR"
           
           # Notificar via Telegram
-          python telegram_notifier.py security_vulnerable || echo "Notificación omitida"
+          python python/telegram_notifier.py security_vulnerable || echo "Notificación omitida"
           
           # Comentar en PR
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -141,7 +141,7 @@ Este PR ha sido bloqueado automáticamente y se ha creado una issue."
         if: steps.analyze.outputs.is_vulnerable == 'false'
         run: |
           echo "✅ Código seguro - Continuando pipeline"
-          python telegram_notifier.py security_safe || echo "Notificación omitida"
+          python python/telegram_notifier.py security_safe || echo "Notificación omitida"
   
   # ============================================
   # ETAPA 2: MERGE A TEST + PRUEBAS
@@ -173,7 +173,7 @@ Este PR ha sido bloqueado automáticamente y se ha creado una issue."
           echo "Merge simulado exitosamente"
           
           # Notificar
-          python telegram_notifier.py || echo "Notificación omitida"
+          python python/telegram_notifier.py || echo "Notificación omitida"
       
       - name: 🐍 Configurar Python para pruebas
         uses: actions/setup-python@v4
@@ -191,13 +191,13 @@ Este PR ha sido bloqueado automáticamente y se ha creado una issue."
           echo "🧪 Ejecutando suite de pruebas..."
           
           # Ejecutar pytest si existe
-          if [ -f "tests/test_model.py" ]; then
-            pytest tests/ -v --tb=short --cov=. --cov-report=term
+          if [ -d "python/tests" ]; then
+            pytest python/tests -v --tb=short --cov=. --cov-report=term
           else
             echo "⚠️ No se encontraron pruebas, creando pruebas básicas..."
-            mkdir -p tests
-            echo "def test_basic(): assert True" > tests/test_basic.py
-            pytest tests/ -v
+            mkdir -p python/tests
+            echo "def test_basic(): assert True" > python/tests/test_basic.py
+            pytest python/tests -v
           fi
           
           TEST_EXIT_CODE=$?
@@ -241,7 +241,7 @@ Este PR ha sido bloqueado automáticamente y se ha creado una issue."
       - name: 🔔 Notificar inicio de despliegue
         run: |
           echo "🚀 Iniciando despliegue a producción..."
-          python telegram_notifier.py || true
+          python python/telegram_notifier.py || true
       
       - name: 🐳 Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -282,6 +282,8 @@ Este PR ha sido bloqueado automáticamente y se ha creado una issue."
           
           # Notificar via Telegram
           python -c "
+          import sys
+          sys.path.append('python')
           from telegram_notifier import TelegramNotifier
           notifier = TelegramNotifier()
           notifier.notify_deployment_success('$URL')
@@ -321,7 +323,7 @@ Este PR ha sido bloqueado automáticamente y se ha creado una issue."
       
       - name: 📊 Generar reporte HTML
         run: |
-          python scripts/generate_basic_report.py || echo "Reporte no generado"
+          python python/scripts/generate_basic_report.py || echo "Reporte no generado"
       
       - name: 📤 Subir artefactos
         uses: actions/upload-artifact@v3

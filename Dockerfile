@@ -14,15 +14,12 @@ COPY requirements.txt .
 # Instalar dependencias Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar archivos de la aplicación
-COPY app.py .
-COPY preprocesar_vulnerabilidades.py .
-COPY train_features.csv .
-COPY test_features.csv .
-COPY example_features.csv .
+# Copiar código Python y datasets
+COPY python/ /app/python/
+COPY csvs/ /app/csvs/
 
 # Crear directorio para reportes
-RUN mkdir -p reports
+RUN mkdir -p /app/reports
 
 # Exponer puerto
 EXPOSE 5000
@@ -30,6 +27,10 @@ EXPOSE 5000
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
 ENV PORT=5000
+ENV CSV_DIR=/app/csvs
+
+# Establecer directorio de trabajo de la app
+WORKDIR /app/python
 
 # Comando de inicio
 CMD ["python", "app.py"]
